@@ -7,7 +7,8 @@ from huggingface_hub import InferenceClient
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-client = InferenceClient(token=HF_TOKEN)
+# إضافة مهلة انتظار 120 ثانية لتجنب أخطاء الـ Timeout
+client = InferenceClient(token=HF_TOKEN, timeout=120)
 
 # دالة بدء التشغيل مع الأزرار الاحترافية الداخلية
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,7 +46,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # دالة معالجة الصور بناءً على الاختيار
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    status_message = await update.message.reply_text("⏳ جاري معالجة الصورة وتحويلها بالذكاء الاصطناعي...")
+    status_message = await update.message.reply_text("⏳ جاري معالجة الصورة وتحويلها بالذكاء الاصطناعي (قد يستغرق بضع ثوانٍ)...")
     
     try:
         photo = update.message.photo[-1]
