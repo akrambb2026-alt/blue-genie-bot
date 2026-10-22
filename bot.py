@@ -50,4 +50,29 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     styles_map = {
-        "
+        "style_soft": ("🌸 أنيمي ناعم", "Transform this image into a cute soft anime art style, masterpiece."),
+        "style_action": ("🔥 أنيمي أكشن", "Transform this image into a dynamic action anime style, epic, high quality."),
+        "style_classic": ("✨ أنيمي كلاسيكي", "Transform this image into a retro 90s classic anime style."),
+        "style_dark": ("🖤 أنيمي مظلم", "Transform this image into a dark cyberpunk anime style with moody shadows."),
+        "style_ninja": ("👁️ أسلوب نينجا", "Transform this image into a ninja stealth anime style with dramatic lighting."),
+        "style_fantasy": ("🐉 فانتازيا", "Transform this image into a fantasy magical anime style with glowing effects.")
+    }
+    
+    if data in styles_map:
+        name, prompt = styles_map[data]
+        context.user_data['selected_style'] = name
+        context.user_data['selected_prompt'] = prompt
+        await query.edit_message_text(
+            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يبدأ الذكاء الاصطناعي بتطبيق هذا النمط عليها!",
+            parse_mode="Markdown"
+        )
+    elif data == "menu_works":
+        await query.edit_message_text(text="🖼️ سجل أعمالي السابقة فارغ حالياً.")
+    elif data == "menu_stats":
+        await query.edit_message_text(text="📊 إحصائياتك: 0 صور تم تحويلها حتى الآن.")
+    elif data == "menu_features":
+        await query.edit_message_text(text="💎 يتيح لك هذا البوت تحويل صورك الشخصية إلى رسومات أنمي احترافية ومتعددة الأنماط بكل سهولة.")
+    elif data == "menu_help":
+        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد أنماط الأنمي من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر ثوانٍ معدودة لتستلم صورتك المحولة.")
+
+async def handle_image(update: Update, context: ContextTypes.
