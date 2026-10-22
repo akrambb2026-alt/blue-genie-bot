@@ -1,79 +1,21 @@
-import os
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-import httpx
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+import os
 
-# إعداد السجلات لمتابعة حالة البوت
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+# التوكن الخاص بك
+TOKEN = "8853392027:AAGa4P7WIwD-LMUmy4kYu4x-UkRMOfQs2mc"
 
-# جلب التوكنات من متغيرات البيئة في Render
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-HF_TOKEN = os.getenv("HF_TOKEN")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('مرحباً بك! أنا المارد السحري، أرسل لي أي صورة لأقوم بمعالجتها بالذكاء الاصطناعي ✨')
 
-# استخدام نموذج نصي-إلى-صورة أو نموذج تفاعلي مستقر لضمان نجاح الطلب
-HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('لقد استلمت رسالتك/صورتك، جاري المعالجة...')
 
-async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.photo:
-        await update.message.reply_text("الرجاء إرسال صورة وسأقوم بتحويلها لك بالذكاء الاصطناعي! 🎨")
-        return
-
-    processing_message = await update.message.reply_text("⏳ جاري معالجة الصورة وتحويلها بواسطة الذكاء الاصطناعي، انتظر قليلاً...")
-
-    try:
-        # استخراج وصف النص المرفق مع الصورة أو استخدام وصف افتراضي لتحويل الصورة
-        user_caption = update.message.caption or "A cinematic anime style masterpiece, high quality"
-
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "inputs": user_caption
-        }
-
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                HF_API_URL,
-                headers=headers,
-                json=payload
-            )
-
-        if response.status_code == 200:
-            output_image_bytes = response.content
-            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
-            await update.message.reply_photo(photo=output_image_bytes, caption="✨ تم تحويل الصورة بنجاح بواسطة الذكاء الاصطناعي!")
-        else:
-            logger.error(f"Hugging Face API Error: {response.status_code} - {response.text}")
-            await context.bot.edit_message_text(
-                chat_id=update.effective_chat.id,
-                message_id=processing_message.message_id,
-                text="⚠️ النموذج يمر حالياً بحالة التحميل (Loading). أرسل الصورة مرة أخرى بعد دقيقة وسيعمل بنجاح!"
-            )
-
-    except Exception as e:
-        logger.error(f"Error processing image: {e}")
-        await context.bot.edit_message_text(
-            chat_id=update.effective_chat.id,
-            message_id=processing_message.message_id,
-            text="⚠️ حدث خطأ غير متوقع أثناء الاتصال بالخادم."
-        )
-
-def main():
-    if not TELEGRAM_BOT_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN is missing!")
-        return
-
-    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(MessageHandler(filters.PHOTO, handle_image))
-
-    logger.info("Bot is starting...")
+if __name__ == '__main__':
+    application = ApplicationBuilder().token(TOKEN).build()
+    
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(MessageHandler(filters.ALL, handle_message))
+    
     application.run_polling()
-
-if __name__ == "__main__":
-    main()
