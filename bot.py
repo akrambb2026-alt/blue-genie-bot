@@ -3,17 +3,16 @@ import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# تفعيل تسجيل الأخطاء لمتابعة حالة البوت
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
-GENIE_IMAGE = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600"
+# صورة ثابتة وموحدة للمارد الأزرق طوال فترة طرح الأسئلة (مثل اللعبة الأصلية)
+GENIE_THINKING_IMAGE = "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600"
 
 QUESTIONS = {
     "q1": {
-        "text": "🧞‍♂️ **المارد الأزرق يفكر...**\n\nهل الشخصية حقيقية أم خيالية؟",
-        "image": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600",
+        "text": "🧞‍♂️ **السؤال (1):** هل الشخصية التي تفكر بها حقيقية (شخصية واقعية) أم خيالية؟",
         "answers": {
             "yes": "q2_real",
             "no": "q2_anime",
@@ -23,8 +22,7 @@ QUESTIONS = {
         }
     },
     "q2_real": {
-        "text": "🧞‍♂️ **ممم...**\n\nهل الشخصية مشهورة في مجال الرياضة أو كرة القدم؟",
-        "image": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600",
+        "text": "🧞‍♂️ **السؤال (2):** هل هذه الشخصية مشهورة في مجال الرياضة وكرة القدم؟",
         "answers": {
             "yes": "res_messi",
             "no": "res_elon",
@@ -34,8 +32,7 @@ QUESTIONS = {
         }
     },
     "q2_anime": {
-        "text": "🧞‍♂️ **شخصية خيالية!**\n\nهل الشخصية من عالم الأنمي والمانغا؟",
-        "image": "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600",
+        "text": "🧞‍♂️ **السؤال (2):** هل الشخصية من عالم الأنمي أو الكرتون الشهير؟",
         "answers": {
             "yes": "res_naruto",
             "no": "res_spiderman",
@@ -68,13 +65,13 @@ RESULTS = {
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("ابدأ اللعبة 🧞‍♂️", callback_data="q1")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    caption = "أهلاً بك في لعبة **المارد الأزرق** الاحترافية! 🧞‍♂️✨\n\nفكر في شخصية وسأحاول تخمينها!"
+    caption = "أهلاً بك في لعبة **المارد الأزرق (Akinator)** الحقيقية! 🧞‍♂️✨\n\nفكر في شخصية وسأحاول تخمينها بأسئلة ذكية."
     
     if update.message:
-        await update.message.reply_photo(photo=GENIE_IMAGE, caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_photo(photo=GENIE_THINKING_IMAGE, caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
     elif update.callback_query:
         query = update.callback_query
-        await query.message.reply_photo(photo=GENIE_IMAGE, caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
+        await query.message.reply_photo(photo=GENIE_THINKING_IMAGE, caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -95,20 +92,22 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🤷‍♂️ لا أعلم", callback_data=q_data["answers"]["idk"])]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_photo(photo=q_data["image"], caption=q_data["text"], reply_markup=reply_markup, parse_mode="Markdown")
+        # إرسال نفس صورة المارد أثناء التفكير مع السؤال الجديد لتبقى اللعبة واقعية تماماً
+        await query.message.reply_photo(photo=GENIE_THINKING_IMAGE, caption=q_data["text"], reply_markup=reply_markup, parse_mode="Markdown")
 
     elif data in RESULTS:
         res = RESULTS[data]
-        result_text = f"🔮 **وجدتها! الشخصية هي:**\n\n{res['title']}\n\nهل حزرت بشكل صحيح؟ 🧞‍♂️"
+        result_text = f"🔮 **المارد يقول: لقد وجدت الشخصية!**\n\nالشخصية هي: {res['title']}\n\nهل حزرت بشكل صحيح؟ 🧞‍♂️"
         keyboard = [[InlineKeyboardButton("إعادة اللعب 🔄", callback_data="restart")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        # إرسال صورة الشخصية فقط عند التخمين النهائي
         await query.message.reply_photo(photo=res["img"], caption=result_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_buttons))
-    print("🧞‍♂️ البوت يعمل الآن بكامل قوته بدون أخطاء...")
+    print("🧞‍♂️ المارد يعمل الآن بطريقة احترافية تشبه اللعبة الحقيقية...")
     app.run_polling()
 
 if __name__ == "__main__":
