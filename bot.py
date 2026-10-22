@@ -1,11 +1,9 @@
 import os
-import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-# يمكنك وضع توكن Hugging Face هنا أو تخزينه في متغيرات البيئة (اختياري لبعض النماذج العامة)
-HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY", "")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -36,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🎨 مرحباً بك في بوت تحويل الصور إلى أنمي بالذكاء الاصطناعي الحقيقي!\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك ليقوم البوت بتحويلها وفبركتها كأنمي ✨",
+        "🎨 مرحباً بك في بوت معالجة وتعديل الصور!\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك لتتم معالجتها فوراً ✨",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -58,9 +56,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if data in styles_map:
         name = styles_map[data]
-        context.user_data['selected_style'] = name
+        context.user_data['selected_style'] = data
+        context.user_data['style_name'] = name
         await query.edit_message_text(
-            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يبدأ الذكاء الاصطناعي برسمها وتحويلها إلى أنمي!",
+            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يقوم البوت بمعالجتها وإرسالها لك!",
             parse_mode="Markdown"
         )
     elif data == "menu_works":
@@ -68,12 +67,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_stats":
         await query.edit_message_text(text="📊 إحصائياتك: 0 صور تم تحويلها حتى الآن.")
     elif data == "menu_features":
-        await query.edit_message_text(text="💎 يتيح لك هذا البوت تحويل صورك الحقيقية إلى شخصيات أنمي باستخدام نماذج الذكاء الاصطناعي المتقدمة.")
+        await query.edit_message_text(text="💎 يتيح لك هذا البوت معالجة صورك الشخصية لأنماط فنية مميزة بكل سرعة.")
     elif data == "menu_help":
-        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد أنماط الأنمي.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر لحظات ليتم توليد صورة الأنمي.")
+        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد الأنماط من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. استلم صورتك المعدلة فوراً.")
 
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    status_message = await update.message.reply_text("⏳ جاري إرسال الصورة للذكاء الاصطناعي وتوليد أنمي حقيقي...")
+    status_message = await update.message.reply_text("⏳ جاري معالجة صورتك...")
     
     try:
         photo = update.message.photo[-1]
@@ -83,33 +82,41 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         output_path = "temp_output.jpg"
         await file.download_to_drive(image_path)
         
-        # استخدام نموذج مجاني عبر Hugging Face للرسم وتحويل الأسلوب
-        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-        headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"} if HUGGINGFACE_API_KEY else {}
+        img = Image.open(image_path).convert("RGB")
+        style = context.user_data.get('selected_style', 'style_soft')
+        style_name = context.user_data.get('style_name', 'أنيمي ناعم')
         
-        selected_style = context.user_data.get('selected_style', 'Anime style')
-        
-        with open(image_path, "rb") as f:
-            data = f.read()
-            
-        # إرسال طلب توليد الصورة بالذكاء الاصطناعي
-        response = requests.post(API_URL, headers=headers, json={"inputs": f"Masterpiece, high quality {selected_style} portrait"})
-        
-        # إذا نجح التوليد واستلمنا صورة
-        if response.status_code == 200 and response.content:
-            with open(output_path, "wb") as out_file:
-                out_file.write(response.content)
-                
-            with open(output_path, 'rb') as photo_file:
-                await update.message.reply_photo(
-                    photo=photo_file,
-                    caption=f"✨ تم تحويل صورتك إلى ({selected_style}) بالذكاء الاصطناعي بنجاح!"
-                )
+        # تعديلات وتأثيرات فنية متقدمة ومضبوطة بعناية
+        if style == 'style_action' or style == 'style_ninja':
+            # تباين قوي وإبراز الحواف لتعطاء طابع أكشن وحاد
+            img = img.filter(ImageFilter.FIND_EDGES)
+            img = ImageOps.invert(img)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(2.0)
+        elif style == 'style_dark':
+            # نمط مظلم وسينمائي
+            img = ImageOps.grayscale(img)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.8).convert("RGB")
+        elif style == 'style_classic' or style == 'style_fantasy':
+            # إبراز تفاصيل كلاسيكية ونقاء عالٍ
+            img = img.filter(ImageFilter.DETAIL)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.4)
         else:
-            # طريقة بديلة في حال الضغط على السيرفر المجاني: إعادة توجيه ناتج تحليلي دقيق ومطابق
-            await update.message.reply_text(f"🎨 تم تحليل صورتك بنجاح لنمط ({selected_style}). السيرفر المجاني مشغول قليلاً، جرب إرسالها مرة أخرى خلال ثوانٍ!")
-
-        # تنظيف الملفات المؤقتة
+            # نمط ناعم
+            img = img.filter(ImageFilter.SMOOTH)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.05)
+            
+        img.save(output_path)
+        
+        with open(output_path, 'rb') as photo_file:
+            await update.message.reply_photo(
+                photo=photo_file,
+                caption=f"✨ تم تعديل صورتك بنجاح بنمط ({style_name})!"
+            )
+        
         if os.path.exists(image_path):
             os.remove(image_path)
         if os.path.exists(output_path):
