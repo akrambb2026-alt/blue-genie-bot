@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🎨 **مرحباً بك في بوت تحويل الصور إلى أنمي!**\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك لمعالجتها بالذكاء الاصطناعي ✨",
+        "🎨 مرحباً بك في بوت تحويل الصور إلى أنمي!\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك لمعالجتها بالذكاء الاصطناعي ✨",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -62,12 +62,57 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['selected_style'] = name
         context.user_data['selected_prompt'] = prompt
         await query.edit_message_text(
-            text=f"✅ لقد اخترت الأسلوب: **{name}**\n\n📸 **أرسل صورتك الآن** في المحادثة لكي يبدأ الذكاء الاصطناعي بتطبيق هذا النمط عليها!",
+            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يبدأ الذكاء الاصطناعي بتطبيق هذا النمط عليها!",
             parse_mode="Markdown"
         )
     elif data == "menu_works":
-        await query.edit_message_text(text="🖼️ سجل أعمالك السابقة فارغ حالياً.")
+        await query.edit_message_text(text="🖼️ سجل أعمالي السابقة فارغ حالياً.")
     elif data == "menu_stats":
         await query.edit_message_text(text="📊 إحصائياتك: 0 صور تم تحويلها حتى الآن.")
     elif data == "menu_features":
-        await query.edit_message_text(text="💎 يتيح لك هذا البوت تحويل صورك الشخصية إلى رسومات أنمي احترافية ومتعددة الأ
+        await query.edit_message_text(text="💎 يتيح لك هذا البوت تحويل صورك الشخصية إلى رسومات أنمي احترافية ومتعددة الأنماط بكل سهولة.")
+    elif data == "menu_help":
+        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد أنماط الأنمي من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر ثوانٍ معدودة لتستلم صورتك المحولة.")
+
+async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    status_message = await update.message.reply_text("⏳ جاري تحويل صورتك إلى أنمي بالذكاء الاصطناعي...")
+    
+    try:
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)
+        
+        image_path = "temp_image.jpg"
+        await file.download_to_drive(image_path)
+        
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+            
+        prompt = context.user_data.get('selected_prompt', "soft anime style, pastel colors, cute, masterpiece")
+            
+        image_output = client.image_to_image(
+            image=image_bytes,
+            prompt=prompt,
+            model="stabilityai/stable-diffusion-xl-base-1.0"
+        )
+        
+        output_path = "output_anime.jpg"
+        image_output.save(output_path)
+        
+        await update.message.reply_photo(photo=open(output_path, "rb"), caption="✨ تفضل صورتك بعد التحويل إلى أنمي!")
+        
+        os.remove(image_path)
+        os.remove(output_path)
+        await status_message.delete()
+        
+    except Exception as e:
+        await status_message.edit_text(f"⚠️ حدث خطأ أثناء المعالجة: {str(e)}")
+
+if __name__ == '__main__':
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_image))
+    
+    print("Bot is running...")
+    application.run_polling()
