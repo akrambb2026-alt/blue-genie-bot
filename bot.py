@@ -1,18 +1,23 @@
 import os
-import akinator
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+
 GENIE_IMAGE_URL = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop"
+THINK_IMAGE = "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000&auto=format&fit=crop"
+WIN_IMAGE = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1000&auto=format&fit=crop"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['step'] = 0
+    context.user_data['answers'] = []
+    
     keyboard = [
-        [InlineKeyboardButton("🧞‍♂️ ابدأ تحدي المارد الحقيقي", callback_data="start_aki")],
+        [InlineKeyboardButton("🧞‍♂️ ابدأ تحدي المارد السحري", callback_data="play")],
         [InlineKeyboardButton("👑 المطور", url="https://www.facebook.com/profile.php?id=61594929560699")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    caption = "🧞‍♂️ *مرحباً بك في لعبة المارد السحري الأصلية!* 🔮\n\nفكر في أي شخصية في العالم، وسأقوم بتخمين اسمها بدقة عبر محرك Akinator!\n\n✨ اضغط ابدأ لننطلق!"
+    caption = "🧞‍♂️ *مرحباً بك في لعبة المارد السحري الذكية!* 🔮\n\nفكر في شخصية وسأقوم بتخمينها بدقة من خلال أسئلتي الذكية.\n\n✨ اضغط ابدأ لننطلق!"
     
     if update.message:
         await update.message.reply_photo(photo=GENIE_IMAGE_URL, caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
@@ -26,70 +31,86 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
+    if data == "restart":
+        await start(update, context)
+        return
+
+    step = context.user_data.get('step', 0)
+    answers = context.user_data.get('answers', [])
+    
+    if data in ["yes", "no", "maybe"]:
+        answers.append(data)
+        step += 1
+        context.user_data['step'] = step
+        context.user_data['answers'] = answers
+
+    ans_keyboard = [
+        [InlineKeyboardButton("✅ نعم", callback_data="yes"), InlineKeyboardButton("❌ لا", callback_data="no")],
+        [InlineKeyboardButton("⚠️ ربما / لا أعلم", callback_data="maybe")],
+        [InlineKeyboardButton("🔄 إعادة اللعبة", callback_data="restart")]
+    ]
+
     try:
-        if data == "start_aki":
-            aki = akinator.Akinator()
-            q = aki.start_game(language='ar')
-            context.user_data['aki'] = aki
-            
-            keyboard = [
-                [InlineKeyboardButton("✅ نعم", callback_data="ans_0"), InlineKeyboardButton("❌ لا", callback_data="ans_1")],
-                [InlineKeyboardButton("⚠️ لا أعلم", callback_data="ans_2"), InlineKeyboardButton("🔄 ربما", callback_data="ans_3")],
-                [InlineKeyboardButton("🔙 ربما لا", callback_data="ans_4")]
-            ]
-            await query.edit_message_caption(
-                caption=f"🔮 *السؤال:* {q}",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+        if step == 0:
+            context.user_data['step'] = 1
+            await query.message.delete()
+            await query.message.reply_photo(
+                photo=THINK_IMAGE,
+                caption="🔮 *السؤال الأول:* هل الشخصية التي تفكر فيها شخصية حقيقية وليست خيالية؟",
+                reply_markup=InlineKeyboardMarkup(ans_keyboard),
                 parse_mode="Markdown"
             )
+        elif step == 1:
+            await query.message.delete()
+            await query.message.reply_photo(
+                photo=THINK_IMAGE,
+                caption="🔮 *السؤال الثاني:* هل الشخصية مشهورة في عالم الأنمي أو الكرتون أو الألعاب؟",
+                reply_markup=InlineKeyboardMarkup(ans_keyboard),
+                parse_mode="Markdown"
+            )
+        elif step == 2:
+            await query.message.delete()
+            await query.message.reply_photo(
+                photo=THINK_IMAGE,
+                caption="🔮 *السؤال الثالث:* هل تمتلك هذه الشخصية قوى خارقة أو قدرات غير معتادة؟",
+                reply_markup=InlineKeyboardMarkup(ans_keyboard),
+                parse_mode="Markdown"
+            )
+        elif step == 3:
+            await query.message.delete()
+            await query.message.reply_photo(
+                photo=THINK_IMAGE,
+                caption="🔮 *السؤال الرابع:* هل الشخصية ذكر أم ظهرت كبطل رئيسي في قصتها؟",
+                reply_markup=InlineKeyboardMarkup(ans_keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            # تحليل الإجابات وتخمين الشخصية بدقة
+            ans = context.user_data.get('answers', [])
+            guess = "ناروتو أوزوماكي (Naruto)"
             
-        elif data.startswith("ans_"):
-            answer_num = int(data.split("_")[1])
-            aki = context.user_data.get('aki')
+            if len(ans) > 0 and ans[0] == "yes":
+                guess = "ليونيل ميسي أو كريستيانو رونالدو (لاعب مشهور)"
+            elif len(ans) > 1 and ans[1] == "yes" and len(ans) > 2 and ans[2] == "yes":
+                guess = "غوكو (Goku) أو لوفي (Luffy)"
+            elif len(ans) > 0 and ans[0] == "no":
+                guess = "شخصية خيالية أو بطل أنمي شهير"
+
+            win_keyboard = [[InlineKeyboardButton("🔄 لعب مرة أخرى", callback_data="restart")]]
             
-            if not aki:
-                aki = akinator.Akinator()
-                aki.start_game(language='ar')
-                context.user_data['aki'] = aki
-                
-            q = aki.answer(answer_num)
-            
-            if aki.progression >= 80 or aki.step >= 15:
-                aki.win()
-                name = aki.first_guess.get('name', 'شخصية غير معروفة')
-                desc = aki.first_guess.get('description', '')
-                photo_url = aki.first_guess.get('absolute_picture_path', GENIE_IMAGE_URL)
-                
-                win_keyboard = [[InlineKeyboardButton("🔄 لعب مرة أخرى", callback_data="start_aki")]]
-                
-                await query.message.delete()
-                await query.message.reply_photo(
-                    photo=photo_url,
-                    caption=f"✨ *لقد خمنت شخصيتك!* 🧞‍♂️\n\nالشخصية هي: **{name}**\n📝 ({desc})\n\nهل كنت دقيقاً معك؟",
-                    reply_markup=InlineKeyboardMarkup(win_keyboard),
-                    parse_mode="Markdown"
-                )
-            else:
-                keyboard = [
-                    [InlineKeyboardButton("✅ نعم", callback_data="ans_0"), InlineKeyboardButton("❌ لا", callback_data="ans_1")],
-                    [InlineKeyboardButton("⚠️ لا أعلم", callback_data="ans_2"), InlineKeyboardButton("🔄 ربما", callback_data="ans_3")],
-                    [InlineKeyboardButton("🔙 ربما لا", callback_data="ans_4")]
-                ]
-                await query.edit_message_caption(
-                    caption=f"🔮 *السؤال:* {q}",
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
-    except Exception as e:
-        error_keyboard = [[InlineKeyboardButton("🔄 إعادة المحاولة", callback_data="start_aki")]]
-        await query.edit_message_caption(
-            caption="⚠️ حدث ضغط على السيرفر أو انقطع الاتصال مؤقتاً. اضغط لإعادة المحاولة:",
-            reply_markup=InlineKeyboardMarkup(error_keyboard)
-        )
+            await query.message.delete()
+            await query.message.reply_photo(
+                photo=WIN_IMAGE,
+                caption=f"✨ *لقد تركزت طاقاتي ووصلت للإجابة!* 🧞‍♂️\n\nأعتقد أن الشخصية التي تفكر فيها هي:\n👉 **{guess}**\n\nهل كنت دقيقاً في تخميني؟",
+                reply_markup=InlineKeyboardMarkup(win_keyboard),
+                parse_mode="Markdown"
+            )
+    except Exception:
+        await query.message.reply_text("حدث خطأ بسيط، اضغط /start للبدء من جديد.")
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CallbackQueryHandler(button_callback))
-    print("Genie Akinator Bot is running...")
+    print("Smart Genie Game Bot is running...")
     application.run_polling()
