@@ -9,7 +9,7 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 
 client = InferenceClient(token=HF_TOKEN)
 
-# دالة /start مع الأزرار الاحترافية الداخلية
+# دالة بدء التشغيل مع الأزرار الاحترافية الداخلية
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🌸 أنيمي ناعم", callback_data="style_soft"), InlineKeyboardButton("🔥 أنيمي أكشن", callback_data="style_action")],
@@ -29,7 +29,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    # حفظ النمط الذي اختاره المستخدم في الـ context
     context.user_data['selected_style'] = query.data
     
     style_names = {
@@ -58,7 +57,6 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(image_path, "rb") as f:
             image_bytes = f.read()
             
-        # تحديد الرموز حسب اختيار المستخدم أو استخدام النمط الافتراضي
         style = context.user_data.get('selected_style', 'style_soft')
         prompts = {
             "style_soft": "soft anime style, pastel colors, cute, masterpiece",
@@ -93,4 +91,7 @@ if __name__ == '__main__':
     
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CallbackQueryHandler(button_callback))
-    application.add_handler(MessageHandler(filters.PHOTO
+    application.add_handler(MessageHandler(filters.PHOTO, handle_image))
+    
+    print("Bot is running...")
+    application.run_polling()
