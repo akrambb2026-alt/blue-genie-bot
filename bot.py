@@ -1,14 +1,13 @@
 import os
-import requests
+import google.generativeai as genai
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from PIL import Image
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-HF_TOKEN = os.environ.get("HF_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") # تأكد من إضافة هذا المفتاح في Render
 
-# نموذج أنمي قوي وموثوق للتحويل المباشر
-API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+genai.configure(api_key=GEMINI_API_KEY)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -51,12 +50,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     styles_map = {
-        "style_soft": ("🌸 أنيمي ناعم", "soft anime style, pastel colors, cute, masterpiece"),
-        "style_action": ("🔥 أنيمي أكشن", "dynamic action anime style, intense, epic, high quality"),
-        "style_classic": ("✨ أنيمي كلاسيكي", "retro 90s anime style, vintage, classic aesthetic"),
-        "style_dark": ("🖤 أنيمي مظلم", "dark anime style, moody shadows, cyberpunk lighting"),
-        "style_ninja": ("👁️ أسلوب نينجا", "ninja stealth anime style, dramatic lighting, sharp details"),
-        "style_fantasy": ("🐉 فانتازيا", "fantasy magical anime style, glowing effects, ethereal")
+        "style_soft": ("🌸 أنيمي ناعم", "Transform this image into a cute soft anime art style, masterpiece."),
+        "style_action": ("🔥 أنيمي أكشن", "Transform this image into a dynamic action anime style, epic, high quality."),
+        "style_classic": ("✨ أنيمي كلاسيكي", "Transform this image into a retro 90s classic anime style."),
+        "style_dark": ("🖤 أنيمي مظلم", "Transform this image into a dark cyberpunk anime style with moody shadows."),
+        "style_ninja": ("👁️ أسلوب نينجا", "Transform this image into a ninja stealth anime style with dramatic lighting."),
+        "style_fantasy": ("🐉 فانتازيا", "Transform this image into a fantasy magical anime style with glowing effects.")
     }
     
     if data in styles_map:
@@ -86,22 +85,15 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_path = "temp_image.jpg"
         await file.download_to_drive(image_path)
         
-        with open(image_path, "rb") as f:
-            data = f.read()
-            
-        # إرسال الصورة مباشرة للنموذج عبر requests
-        response = requests.post(API_URL, headers=headers, data=data, timeout=120)
+        img = Image.open(image_path)
+        prompt = context.user_data.get('selected_prompt', "Transform this image into a cute soft anime art style.")
         
-        if response.status_code == 200:
-            output_path = "output_anime.jpg"
-            with open(output_path, "wb") as out_file:
-                out_file.write(response.content)
-                
-            await update.message.reply_photo(photo=open(output_path, "rb"), caption="✨ تفضل صورتك بعد التحويل إلى أنمي!")
-            os.remove(output_path)
-        else:
-            await update.message.reply_text(f"⚠️ النموذج مشغول حالياً (Code {response.status_code}). حاول إرسال الصورة مرة أخرى بعد قليل.")
-            
+        # استخدام نموذج gemini-2.5-flash لتحليل وتعديل الصورة
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content([prompt, img])
+        
+        await update.message.reply_text(f"✨ النتيجة ووصف التحويل:\n{response.text}")
+        
         os.remove(image_path)
         await status_message.delete()
         
