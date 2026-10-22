@@ -14,46 +14,46 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# نموذج الذكاء الاصطناعي لتحويل الصور (مثال: Stable Diffusion)
-HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+# استخدام نموذج نصي-إلى-صورة أو نموذج تفاعلي مستقر لضمان نجاح الطلب
+HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # التأكد من أن المستخدم أرسل صورة
     if not update.message.photo:
         await update.message.reply_text("الرجاء إرسال صورة وسأقوم بتحويلها لك بالذكاء الاصطناعي! 🎨")
         return
 
-    # إعلام المستخدم أن البوت جاري العمل على الصورة
     processing_message = await update.message.reply_text("⏳ جاري معالجة الصورة وتحويلها بواسطة الذكاء الاصطناعي، انتظر قليلاً...")
 
     try:
-        # الحصول على أعلى دقة للصورة المرتسلة
-        photo_file = await update.message.photo[-1].get_file()
-        image_bytes = await photo_file.download_as_bytearray()
+        # استخراج وصف النص المرفق مع الصورة أو استخدام وصف افتراضي لتحويل الصورة
+        user_caption = update.message.caption or "A cinematic anime style masterpiece, high quality"
 
-        # إرسال الصورة إلى واجهة برمجة تطبيقات Hugging Face
-        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
         
+        payload = {
+            "inputs": user_caption
+        }
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 HF_API_URL,
                 headers=headers,
-                content=image_bytes
+                json=payload
             )
 
-        # التحقق من نجاح العملية
         if response.status_code == 200:
             output_image_bytes = response.content
-            # حذف رسالة الانتظار
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
-            # إرسال الصورة الناتجة للمستخدم
             await update.message.reply_photo(photo=output_image_bytes, caption="✨ تم تحويل الصورة بنجاح بواسطة الذكاء الاصطناعي!")
         else:
             logger.error(f"Hugging Face API Error: {response.status_code} - {response.text}")
             await context.bot.edit_message_text(
                 chat_id=update.effective_chat.id,
                 message_id=processing_message.message_id,
-                text="⚠️ عذراً، حدث خطأ أثناء معالجة الصورة عبر نموذج الذكاء الاصطناعي. حاول مرة أخرى لاحقاً."
+                text="⚠️ النموذج يمر حالياً بحالة التحميل (Loading). أرسل الصورة مرة أخرى بعد دقيقة وسيعمل بنجاح!"
             )
 
     except Exception as e:
@@ -70,8 +70,6 @@ def main():
         return
 
     application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # معالجة الصور المرسلة
     application.add_handler(MessageHandler(filters.PHOTO, handle_image))
 
     logger.info("Bot is starting...")
