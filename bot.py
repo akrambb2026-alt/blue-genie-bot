@@ -1,13 +1,9 @@
 import os
-import google.generativeai as genai
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
-from PIL import Image
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-genai.configure(api_key=GEMINI_API_KEY)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -38,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🎨 مرحباً بك في بوت تحويل الصور إلى أنمي!\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك لمعالجتها بالذكاء الاصطناعي ✨",
+        "🎨 مرحباً بك في بوت تحويل الصور الفني!\n\nاختر الأسلوب الذي تفضله من الأزرار أعلاه، ثم أرسل صورتك ليقوم البوت بتعديلها وإرسالها فوراً ✨",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -50,20 +46,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     styles_map = {
-        "style_soft": ("🌸 أنيمي ناعم", "Transform this image into a cute soft anime art style, masterpiece."),
-        "style_action": ("🔥 أنيمي أكشن", "Transform this image into a dynamic action anime style, epic, high quality."),
-        "style_classic": ("✨ أنيمي كلاسيكي", "Transform this image into a retro 90s classic anime style."),
-        "style_dark": ("🖤 أنيمي مظلم", "Transform this image into a dark cyberpunk anime style with moody shadows."),
-        "style_ninja": ("👁️ أسلوب نينجا", "Transform this image into a ninja stealth anime style with dramatic lighting."),
-        "style_fantasy": ("🐉 فانتازيا", "Transform this image into a fantasy magical anime style with glowing effects.")
+        "style_soft": "🌸 أنيمي ناعم",
+        "style_action": "🔥 أنيمي أكشن",
+        "style_classic": "✨ أنيمي كلاسيكي",
+        "style_dark": "🖤 أنيمي مظلم",
+        "style_ninja": "👁️ أسلوب نينجا",
+        "style_fantasy": "🐉 فانتازيا"
     }
     
     if data in styles_map:
-        name, prompt = styles_map[data]
-        context.user_data['selected_style'] = name
-        context.user_data['selected_prompt'] = prompt
+        name = styles_map[data]
+        context.user_data['selected_style'] = data
         await query.edit_message_text(
-            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يبدأ الذكاء الاصطناعي بتطبيق هذا النمط عليها!",
+            text=f"✅ لقد اخترت الأسلوب: {name}\n\n📸 أرسل صورتك الآن في المحادثة لكي يقوم البوت بمعالجتها وإرسالها لك!",
             parse_mode="Markdown"
         )
     elif data == "menu_works":
@@ -71,29 +66,57 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_stats":
         await query.edit_message_text(text="📊 إحصائياتك: 0 صور تم تحويلها حتى الآن.")
     elif data == "menu_features":
-        await query.edit_message_text(text="💎 يتيح لك هذا البوت تحويل صورك الشخصية إلى رسومات أنمي احترافية ومتعددة الأنماط بكل سهولة.")
+        await query.edit_message_text(text="💎 يتيح لك هذا البوت معالجة وتعديل صورك الشخصية لأنماط فنية رائعة بكل سهولة.")
     elif data == "menu_help":
-        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد أنماط الأنمي من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر ثوانٍ معدودة لتستلم صورتك المحولة.")
+        await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد الأنماط من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر ثوانٍ معدودة لتستلم صورتك المحولة.")
 
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    status_message = await update.message.reply_text("⏳ جاري تحويل صورتك إلى أنمي بالذكاء الاصطناعي...")
+    status_message = await update.message.reply_text("⏳ جاري معالجة وتعديل صورتك...")
     
     try:
         photo = update.message.photo[-1]
         file = await context.bot.get_file(photo.file_id)
         
         image_path = "temp_image.jpg"
+        output_path = "output_image.jpg"
         await file.download_to_drive(image_path)
         
-        img = Image.open(image_path)
-        prompt = context.user_data.get('selected_prompt', "Transform this image into a cute soft anime art style.")
+        # معالجة الصورة محلياً بشكل مجاني بالكامل
+        img = Image.open(image_path).convert("RGB")
+        style = context.user_data.get('selected_style', 'style_soft')
         
-        model = genai.GenerativeModel('gemini-3.8-flash')
-        response = model.generate_content([prompt, img])
+        # تطبيق تأثيرات فنية بناء على اختيار المستخدم
+        if style == 'style_action':
+            img = ImageOps.posterize(img, 4)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.8)
+        elif style == 'style_dark':
+            img = ImageOps.invert(img.convert('L')).convert('RGB')
+            img = ImageOps.posterize(img, 3)
+        elif style == 'style_classic':
+            img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.5)
+        else:
+            img = img.filter(ImageFilter.SMOOTH_MORE)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)
+            
+        img.save(output_path)
         
-        await update.message.reply_text(f"✨ النتيجة ووصف التحويل:\n{response.text}")
+        # إرسال الصورة الناتجة للمستخدم مباشرة
+        with open(output_path, 'rb') as photo_file:
+            await update.message.reply_photo(
+                photo=photo_file,
+                caption="✨ تم تحويل وتعديل صورتك بنجاح بواسطة البوت!"
+            )
         
-        os.remove(image_path)
+        # تنظيف الملفات المؤقتة
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+            
         await status_message.delete()
         
     except Exception as e:
