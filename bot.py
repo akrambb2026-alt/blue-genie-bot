@@ -75,4 +75,36 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_help":
         await query.edit_message_text(text="ℹ️ طريقة الاستخدام:\n1. اضغط على أحد أنماط الأنمي من الأزرار.\n2. أرسل صورتك مباشرة للمحادثة.\n3. انتظر ثوانٍ معدودة لتستلم صورتك المحولة.")
 
-async def handle_image(update: Update, context: ContextTypes.
+async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    status_message = await update.message.reply_text("⏳ جاري تحويل صورتك إلى أنمي بالذكاء الاصطناعي...")
+    
+    try:
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)
+        
+        image_path = "temp_image.jpg"
+        await file.download_to_drive(image_path)
+        
+        img = Image.open(image_path)
+        prompt = context.user_data.get('selected_prompt', "Transform this image into a cute soft anime art style.")
+        
+        model = genai.GenerativeModel('gemini-3.8-flash')
+        response = model.generate_content([prompt, img])
+        
+        await update.message.reply_text(f"✨ النتيجة ووصف التحويل:\n{response.text}")
+        
+        os.remove(image_path)
+        await status_message.delete()
+        
+    except Exception as e:
+        await status_message.edit_text(f"⚠️ حدث خطأ أثناء المعالجة: {str(e)}")
+
+if __name__ == '__main__':
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_image))
+    
+    print("Bot is running...")
+    application.run_polling()
