@@ -7,58 +7,86 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
-# صور أنمي جاهزة وجميلة للتفاعل
+# صور أنمي جاهزة للعرض
 ANIME_IMAGES = [
     "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600",
-    "https://images.unsplash.com/photo-1563089145-599997674d42?w=600",
-    "https://images.unsplash.com/photo-1604200213928-ba3cf4fc8436?w=600"
+    "https://images.unsplash.com/photo-1563089145-599997674d42?w=600"
 ]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # تصميم الأزرار بنفس ترتيب الصورة تماماً (شبكي واحترافي)
     keyboard = [
-        [InlineKeyboardButton("🎨 تحويل صورتي لأنمي", callback_data="convert_anime")],
-        [InlineKeyboardButton("⭐ شخصيات أنمي عشوائية", callback_data="random_anime")]
+        [InlineKeyboardButton("🎨 تحويل إلى أنمي", callback_data="main_convert")],
+        [
+            InlineKeyboardButton("🔥 أنمي أكشن", callback_data="style_action"),
+            InlineKeyboardButton("🌸 أنمي ناعم", callback_data="style_soft")
+        ],
+        [
+            InlineKeyboardButton("🖤 أنمي مظلم", callback_data="style_dark"),
+            InlineKeyboardButton("✨ أنمي كلاسيكي", callback_data="style_classic")
+        ],
+        [
+            InlineKeyboardButton("👁️ أسلوب نينجا", callback_data="style_ninja"),
+            InlineKeyboardButton("🐉 فانتازيا", callback_data="style_fantasy")
+        ],
+        [
+            InlineKeyboardButton("🖼️ أعمالي السابقة", callback_data="my_works"),
+            InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")
+        ],
+        [
+            InlineKeyboardButton("💎 المميزات", callback_data="features"),
+            InlineKeyboardButton("ℹ️ المساعدة", callback_data="help")
+        ],
+        [InlineKeyboardButton("👑 المطور", callback_data="developer")]
     ]
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    text = "أهلاً بك في عالم **الأنمي الساحر!** 🌸🎌\n\nأرسل لي صورتك الشخصية أو اضغط على الأزرار في الأسفل لنبدأ المتعة!"
+    
+    # النص الترحيبي المزخرف المطابق للصورة
+    text = (
+        "┌  ⌜ 🗡️  ANIME AI ⌟  ┐\n\n"
+        "┃  ⚡ | مرحبًا بك في عالم الأنمي!\n\n"
+        "🎨 | حوّل صورك إلى شخصيات أنمي مذهلة.\n"
+        "🔥 | اكتشف أساليب فنية متنوعة.\n"
+        "👁️ | اختر مظهرك الأنمي المفضل.\n"
+        "✨ | اصنع صورتك بأسلوبك الخاص.\n\n"
+        "└──────────────────────┘\n\n"
+        "📸 أرسل صورتك، واختار أسلوبك،\n"
+        "ودع الذكاء الاصطناعي يصنع لك تحفة فنية! 🎭"
+    )
     
     if update.message:
-        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text(text, reply_markup=reply_markup)
     elif update.callback_query:
         query = update.callback_query
-        await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+        await query.message.reply_text(text, reply_markup=reply_markup)
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
 
-    if data == "convert_anime":
-        text = "📸 **أرسل صورتك الآن في المحادثة!**\n\nدعني أرى ملامحك لكي أقوم بتحويلها إلى بطل أنمي أسطوري ✨"
-        await query.message.reply_text(text, parse_mode="Markdown")
-    elif data == "random_anime":
-        caption = "✨ **إليك إحدى شخصيات الأنمي المميزة اليوم!**"
-        keyboard = [[InlineKeyboardButton("🔄 صورة أخرى", callback_data="random_anime"), InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_photo(photo=ANIME_IMAGES[0], caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
-    elif data == "main_menu":
-        await start(update, context)
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # عندما يرسل المستخدم صورة، يقوم البوت بالرد بشكل ترفيهي وجميل
-    caption = "🎨 **تم استلام صورتك بنجاح!**\n\nجاري معالجة الملامح وتحويلك إلى شخصية أنمي خرافية... 🪄✨\n\n*(هذه نسخة تجريبية سريعة لبوت الأنمي الخاص بك!)*"
-    keyboard = [[InlineKeyboardButton("🔄 تجربة صورة أخرى", callback_data="convert_anime"), InlineKeyboardButton("🏠 الرئيسية", callback_data="main_menu")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # نرد عليه بإحدى صور الأنمي كمثال للتحويل
-    await update.message.reply_photo(photo=ANIME_IMAGES[1], caption=caption, reply_markup=reply_markup, parse_mode="Markdown")
+    if data == "main_convert":
+        await query.message.reply_text("📸 **أرسل صورتك الآن في المحادثة** لكي يبدأ الذكاء الاصطناعي بتحويلها للأسلوب الذي تناسبه! ✨")
+    elif data.startswith("style_"):
+        style_name = data.replace("style_", "")
+        await query.message.reply_text(f"🎨 تم اختيار أسلوب (**{style_name}**).\n\nالآن **أرسل صورتك الشخصية** لتطبيق هذا النمط عليها فوراً! ⚡")
+    elif data == "my_works":
+        await query.message.reply_text("🖼️ ليس لديك أي أعمال محفوظة حتى الآن. قم بإرسال صورة لنبدأ! 🚀")
+    elif data == "my_stats":
+        await query.message.reply_text("📊 **إحصائياتك:**\n- عدد الصور المحولة: 0\n- الأسلوب المفضل: لم يتم التحديد بعد.")
+    elif data == "features":
+        await query.message.reply_text("💎 **مميزات البوت:**\n- تحويل سريع وسلس.\n- عدة أنماط فنية مذهلة.\n- جودة عالية في معالجة الصور.")
+    elif data == "help":
+        await query.message.reply_text("ℹ️ **طريقة الاستخدام:**\n1. اختر الأسلوب الذي يعجبك من الأزرار.\n2. أرسل صورتك في المحادثة.\n3. انتظر ثوانٍ معدودة لتستلم تحفتك الفنية!")
+    elif data == "developer":
+        await query.message.reply_text("👑 **المطور:** تم تطوير هذا البوت بواسطة بطل محترف! للتواصل تابع جديدنا دائماً.")
 
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_buttons))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    print("🌸 بوت الأنمي يعمل الآن بكفاءة...")
+    print("🎨 بوت الأنمي بالأزرار الاحترافية يعمل الآن بنجاح...")
     app.run_polling()
 
 if __name__ == "__main__":
