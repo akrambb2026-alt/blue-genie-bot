@@ -1,12 +1,14 @@
 import os
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
-from huggingface_hub import InferenceClient
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-client = InferenceClient(token=HF_TOKEN, timeout=120)
+# نموذج أنمي قوي وموثوق للتحويل المباشر
+API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -85,23 +87,22 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await file.download_to_drive(image_path)
         
         with open(image_path, "rb") as f:
-            image_bytes = f.read()
+            data = f.read()
             
-        prompt = context.user_data.get('selected_prompt', "soft anime style, pastel colors, cute, masterpiece")
+        # إرسال الصورة مباشرة للنموذج عبر requests
+        response = requests.post(API_URL, headers=headers, data=data, timeout=120)
+        
+        if response.status_code == 200:
+            output_path = "output_anime.jpg"
+            with open(output_path, "wb") as out_file:
+                out_file.write(response.content)
+                
+            await update.message.reply_photo(photo=open(output_path, "rb"), caption="✨ تفضل صورتك بعد التحويل إلى أنمي!")
+            os.remove(output_path)
+        else:
+            await update.message.reply_text(f"⚠️ النموذج مشغول حالياً (Code {response.status_code}). حاول إرسال الصورة مرة أخرى بعد قليل.")
             
-        image_output = client.image_to_image(
-            image=image_bytes,
-            prompt=prompt,
-            model="stabilityai/stable-diffusion-xl-base-1.0"
-        )
-        
-        output_path = "output_anime.jpg"
-        image_output.save(output_path)
-        
-        await update.message.reply_photo(photo=open(output_path, "rb"), caption="✨ تفضل صورتك بعد التحويل إلى أنمي!")
-        
         os.remove(image_path)
-        os.remove(output_path)
         await status_message.delete()
         
     except Exception as e:
